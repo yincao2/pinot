@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pinot.hadoop.job.partitioners;
+package org.apache.pinot.ingestion.preprocess.partitioners;
 
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.mapred.AvroValue;
@@ -27,9 +27,9 @@ import org.apache.pinot.segment.spi.partition.PartitionFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.apache.pinot.hadoop.job.InternalConfigConstants.NUM_PARTITIONS_CONFIG;
-import static org.apache.pinot.hadoop.job.InternalConfigConstants.PARTITION_COLUMN_CONFIG;
-import static org.apache.pinot.hadoop.job.InternalConfigConstants.PARTITION_FUNCTION_CONFIG;
+import static org.apache.pinot.ingestion.utils.InternalConfigConstants.NUM_PARTITIONS_CONFIG;
+import static org.apache.pinot.ingestion.utils.InternalConfigConstants.PARTITION_COLUMN_CONFIG;
+import static org.apache.pinot.ingestion.utils.InternalConfigConstants.PARTITION_FUNCTION_CONFIG;
 
 
 public class GenericPartitioner<T> extends Partitioner<T, AvroValue<GenericRecord>> implements Configurable {
@@ -45,7 +45,8 @@ public class GenericPartitioner<T> extends Partitioner<T, AvroValue<GenericRecor
     _configuration = conf;
     _partitionColumn = _configuration.get(PARTITION_COLUMN_CONFIG);
     _numPartitions = Integer.parseInt(_configuration.get(NUM_PARTITIONS_CONFIG));
-    _partitionFunction = PartitionFunctionFactory.getPartitionFunction(_configuration.get(PARTITION_FUNCTION_CONFIG, null), _numPartitions);
+    _partitionFunction = PartitionFunctionFactory
+        .getPartitionFunction(_configuration.get(PARTITION_FUNCTION_CONFIG, null), _numPartitions);
 
     LOGGER.info("The partition function is: " + _partitionFunction.getClass().getName());
     LOGGER.info("The partition column is: " + _partitionColumn);

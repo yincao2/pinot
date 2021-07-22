@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pinot.hadoop.job.preprocess;
+package org.apache.pinot.ingestion.preprocess;
 
 import com.google.common.base.Preconditions;
 import java.io.IOException;
@@ -26,23 +26,13 @@ import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileStream;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.mapred.AvroKey;
-import org.apache.avro.mapreduce.AvroJob;
-import org.apache.avro.mapreduce.AvroKeyInputFormat;
-import org.apache.avro.mapreduce.AvroKeyOutputFormat;
-import org.apache.avro.mapreduce.AvroMultipleOutputs;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.NullWritable;
-import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Partitioner;
-import org.apache.hadoop.mapreduce.lib.output.LazyOutputFormat;
-import org.apache.pinot.hadoop.job.mappers.AvroDataPreprocessingMapper;
-import org.apache.pinot.hadoop.job.partitioners.AvroDataPreprocessingPartitioner;
-import org.apache.pinot.hadoop.job.reducers.AvroDataPreprocessingReducer;
-import org.apache.pinot.hadoop.utils.preprocess.HadoopUtils;
+import org.apache.pinot.ingestion.preprocess.partitioners.AvroDataPreprocessingPartitioner;
+import org.apache.pinot.ingestion.utils.preprocess.HadoopUtils;
 import org.apache.pinot.segment.spi.partition.PartitionFunctionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,30 +51,19 @@ public class AvroDataPreprocessingHelper extends DataPreprocessingHelper {
   }
 
   @Override
-  public void setUpMapperReducerConfigs(Job job)
+  public Object getSchema(Path inputPathDir)
       throws IOException {
-    Schema avroSchema = getAvroSchema(_sampleRawDataPath);
-    LOGGER.info("Avro schema is: {}", avroSchema.toString(true));
-    validateConfigsAgainstSchema(avroSchema);
-
-    job.setInputFormatClass(AvroKeyInputFormat.class);
-    job.setMapperClass(AvroDataPreprocessingMapper.class);
-
-    job.setReducerClass(AvroDataPreprocessingReducer.class);
-    AvroMultipleOutputs.addNamedOutput(job, "avro", AvroKeyOutputFormat.class, avroSchema);
-    AvroMultipleOutputs.setCountersEnabled(job, true);
-    // Use LazyOutputFormat to avoid creating empty files.
-    LazyOutputFormat.setOutputFormatClass(job, AvroKeyOutputFormat.class);
-    job.setOutputKeyClass(AvroKey.class);
-    job.setOutputValueClass(NullWritable.class);
-
-    AvroJob.setInputKeySchema(job, avroSchema);
-    AvroJob.setMapOutputValueSchema(job, avroSchema);
-    AvroJob.setOutputKeySchema(job, avroSchema);
+    return getAvroSchema(inputPathDir);
   }
 
   @Override
-  String getSampleTimeColumnValue(String timeColumnName)
+  public void validateConfigsAgainstSchema(Object schema) {
+    Schema avroSchema = (Schema) schema;
+    validateConfigsAgainstSchema(avroSchema);
+  }
+
+  @Override
+  public String getSampleTimeColumnValue(String timeColumnName)
       throws IOException {
     String sampleTimeColumnValue;
     try (DataFileStream<GenericRecord> dataStreamReader = getAvroReader(_sampleRawDataPath)) {
@@ -99,7 +78,7 @@ public class AvroDataPreprocessingHelper extends DataPreprocessingHelper {
    * @return Input schema
    * @throws IOException exception when accessing to IO
    */
-  private Schema getAvroSchema(Path inputPathDir)
+  protected Schema getAvroSchema(Path inputPathDir)
       throws IOException {
     Schema avroSchema = null;
     for (FileStatus fileStatus : HadoopUtils.DEFAULT_FILE_SYSTEM.listStatus(inputPathDir)) {
@@ -136,12 +115,14 @@ public class AvroDataPreprocessingHelper extends DataPreprocessingHelper {
     if (_partitionColumn != null) {
       Preconditions.checkArgument(schema.getField(_partitionColumn) != null,
           String.format("Partition column: %s is not found from the schema of input files.", _partitionColumn));
-      Preconditions.checkArgument(_numPartitions > 0, String.format("Number of partitions should be positive. Current value: %s", _numPartitions));
+      Preconditions.checkArgument(_numPartitions > 0,
+          String.format("Number of partitions should be positive. Current value: %s", _numPartitions));
       Preconditions.checkArgument(_partitionFunction != null, "Partition function should not be null!");
       try {
         PartitionFunctionFactory.PartitionFunctionType.fromString(_partitionFunction);
       } catch (IllegalArgumentException e) {
-        LOGGER.error("Partition function needs to be one of Modulo, Murmur, ByteArray, HashCode, it is currently {}", _partitionColumn);
+        LOGGER.error("Partition function needs to be one of Modulo, Murmur, ByteArray, HashCode, it is currently {}",
+            _partitionColumn);
         throw new IllegalArgumentException(e);
       }
     }

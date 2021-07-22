@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pinot.hadoop.job.mappers;
+package org.apache.pinot.ingestion.preprocess.mappers;
 
 import com.google.common.base.Preconditions;
 import java.io.IOException;
@@ -27,9 +27,9 @@ import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.orc.mapred.OrcStruct;
 import org.apache.orc.mapred.OrcValue;
-import org.apache.pinot.hadoop.job.InternalConfigConstants;
-import org.apache.pinot.hadoop.utils.preprocess.DataPreprocessingUtils;
-import org.apache.pinot.hadoop.utils.preprocess.OrcUtils;
+import org.apache.pinot.ingestion.utils.DataPreprocessingUtils;
+import org.apache.pinot.ingestion.utils.InternalConfigConstants;
+import org.apache.pinot.ingestion.utils.preprocess.OrcUtils;
 import org.apache.pinot.spi.data.FieldSpec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,7 +50,8 @@ public class OrcDataPreprocessingMapper extends Mapper<NullWritable, OrcStruct, 
     if (sortingColumnConfig != null) {
       _sortingColumn = sortingColumnConfig;
       _sortingColumnType = FieldSpec.DataType.valueOf(configuration.get(InternalConfigConstants.SORTING_COLUMN_TYPE));
-      LOGGER.info("Initialized OrcDataPreprocessingMapper with sortingColumn: {} of type: {}", _sortingColumn, _sortingColumnType);
+      LOGGER.info("Initialized OrcDataPreprocessingMapper with sortingColumn: {} of type: {}", _sortingColumn,
+          _sortingColumnType);
     } else {
       LOGGER.info("Initialized OrcDataPreprocessingMapper without sorting column");
     }
@@ -64,16 +65,19 @@ public class OrcDataPreprocessingMapper extends Mapper<NullWritable, OrcStruct, 
       if (_sortingColumnId == -1) {
         List<String> fieldNames = value.getSchema().getFieldNames();
         _sortingColumnId = fieldNames.indexOf(_sortingColumn);
-        Preconditions.checkState(_sortingColumnId != -1, "Failed to find sorting column: %s in the ORC fields: %s", _sortingColumn, fieldNames);
+        Preconditions.checkState(_sortingColumnId != -1, "Failed to find sorting column: %s in the ORC fields: %s",
+            _sortingColumn, fieldNames);
         LOGGER.info("Field id for sorting column: {} is: {}", _sortingColumn, _sortingColumnId);
       }
       WritableComparable sortingColumnValue = value.getFieldValue(_sortingColumnId);
       WritableComparable outputKey;
       try {
-        outputKey = DataPreprocessingUtils.convertToWritableComparable(OrcUtils.convert(sortingColumnValue), _sortingColumnType);
+        outputKey = DataPreprocessingUtils
+            .convertToWritableComparable(OrcUtils.convert(sortingColumnValue), _sortingColumnType);
       } catch (Exception e) {
-        throw new IllegalStateException(
-            String.format("Caught exception while processing sorting column: %s, id: %d in ORC struct: %s", _sortingColumn, _sortingColumnId, value), e);
+        throw new IllegalStateException(String
+            .format("Caught exception while processing sorting column: %s, id: %d in ORC struct: %s", _sortingColumn,
+                _sortingColumnId, value), e);
       }
       context.write(outputKey, _valueWrapper);
     } else {
