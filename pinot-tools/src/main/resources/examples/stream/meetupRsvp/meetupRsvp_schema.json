@@ -1,64 +1,141 @@
 {
-  "metricFieldSpecs": [
-    {
-      "dataType": "INT",
-      "name": "rsvp_count"
-    }
-  ],
+  "schemaName": "meetupRsvp",
   "dimensionFieldSpecs": [
     {
-      "dataType": "STRING",
-      "name": "venue_name"
+      "name": "host",
+      "dataType": "STRING"
     },
     {
-      "dataType": "STRING",
-      "name": "event_name"
+      "name": "poolname",
+      "dataType": "STRING"
     },
     {
-      "dataType": "STRING",
-      "name": "event_id"
+      "name": "type",
+      "dataType": "STRING"
     },
     {
-      "dataType": "TIMESTAMP",
-      "name": "event_time"
+      "name": "metricName",
+      "dataType": "STRING"
     },
     {
-      "dataType": "STRING",
-      "name": "group_city"
+      "name": "featureName",
+      "dataType": "STRING"
     },
     {
-      "dataType": "STRING",
-      "name": "group_country"
+      "name": "failReason",
+      "dataType": "STRING"
     },
     {
-      "dataType": "LONG",
-      "name": "group_id"
+      "name": "confID",
+      "dataType": "STRING"
     },
     {
-      "dataType": "STRING",
-      "name": "group_name"
+      "name": "componentType",
+      "dataType": "STRING"
     },
     {
-      "dataType": "DOUBLE",
-      "name": "group_lat"
+      "name": "componentAddress",
+      "dataType": "STRING"
     },
     {
-      "dataType": "DOUBLE",
-      "name": "group_lon"
+      "name": "componentVer",
+      "dataType": "STRING"
     },
     {
-      "dataType": "BYTES",
-      "name": "location",
-      "transformFunction": "toSphericalGeography(stPoint(group_lon,group_lat))"
+      "name": "CascadeType",
+      "dataType": "STRING"
+    },
+    {
+      "name": "DstIP",
+      "dataType": "STRING"
+    },
+    {
+      "name": "LocalIP",
+      "dataType": "STRING"
+    },
+    {
+      "name": "dstIp",
+      "dataType": "STRING"
+    },
+    {
+      "name": "localIp",
+      "dataType": "STRING"
+    },
+    {
+      "name": "direct",
+      "dataType": "STRING"
+    },
+    {
+      "name": "conndesc",
+      "dataType": "STRING"
+    },
+    {
+      "name": "Jitter",
+      "dataType": "STRING"
+    },
+    {
+      "name": "Loss",
+      "dataType": "STRING"
+    },
+    {
+      "name": "Rtt",
+      "dataType": "STRING"
+    },
+    {
+      "name": "reportTime",
+      "dataType": "STRING"
+    },
+    {
+      "name": "reportHour",
+      "dataType": "STRING"
+    },
+    {
+      "name": "reportDay",
+      "dataType": "STRING"
+    },
+    {
+      "name": "tsrTemp",
+      "dataType": "STRING"
+    },
+    {
+      "name": "tsr",
+      "dataType": "STRING"
+    }
+  ],
+  "metricFieldSpecs": [
+    {
+      "name": "ReceiveJitter",
+      "dataType": "LONG"
+    },
+    {
+      "name": "ReceiveLostRatio",
+      "dataType": "LONG"
+    },
+    {
+      "name": "JitterMax",
+      "dataType": "LONG"
+    },
+    {
+      "name": "LossMax",
+      "dataType": "LONG"
+    },
+    {
+      "name": "RttMax",
+      "dataType": "LONG"
     }
   ],
   "dateTimeFieldSpecs": [
     {
-      "name": "mtime",
-      "dataType": "TIMESTAMP",
-      "format": "1:MILLISECONDS:TIMESTAMP",
+      "name": "ts",
+      "dataType": "LONG",
+      "format": "1:MILLISECONDS:EPOCH",
+      "granularity": "1:MILLISECONDS"
+    },
+    {
+      "name": "ints",
+      "dataType": "LONG",
+      "format": "1:MILLISECONDS:EPOCH",
       "granularity": "1:MILLISECONDS"
     }
-  ],
-  "schemaName": "meetupRsvp"
+  ]
 }
