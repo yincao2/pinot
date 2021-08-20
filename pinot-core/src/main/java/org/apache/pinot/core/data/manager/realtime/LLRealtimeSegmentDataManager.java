@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * <p>
- * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -21,6 +21,16 @@ package org.apache.pinot.core.data.manager.realtime;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.Uninterruptibles;
+import java.io.File;
+import java.io.IOException;
+import java.net.URISyntaxException;
+import java.util.*;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import javax.annotation.Nullable;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pinot.common.Utils;
@@ -49,11 +59,28 @@ import org.apache.pinot.segment.spi.creator.SegmentVersion;
 import org.apache.pinot.segment.spi.partition.PartitionFunctionFactory;
 import org.apache.pinot.segment.spi.store.SegmentDirectoryPaths;
 import org.apache.pinot.server.realtime.ServerSegmentCompletionProtocolHandler;
-import org.apache.pinot.spi.config.table.*;
+import org.apache.pinot.spi.config.table.ColumnPartitionConfig;
+import org.apache.pinot.spi.config.table.CompletionConfig;
+import org.apache.pinot.spi.config.table.IndexingConfig;
+import org.apache.pinot.spi.config.table.SegmentPartitionConfig;
+import org.apache.pinot.spi.config.table.TableConfig;
 import org.apache.pinot.spi.data.Schema;
 import org.apache.pinot.spi.data.readers.GenericRow;
 import org.apache.pinot.spi.metrics.PinotMeter;
-import org.apache.pinot.spi.stream.*;
+import org.apache.pinot.spi.stream.MessageBatch;
+import org.apache.pinot.spi.stream.PartitionGroupConsumer;
+import org.apache.pinot.spi.stream.PartitionGroupConsumptionStatus;
+import org.apache.pinot.spi.stream.PartitionLevelStreamConfig;
+import org.apache.pinot.spi.stream.PermanentConsumerException;
+import org.apache.pinot.spi.stream.RowMetadata;
+import org.apache.pinot.spi.stream.StreamConsumerFactory;
+import org.apache.pinot.spi.stream.StreamConsumerFactoryProvider;
+import org.apache.pinot.spi.stream.StreamDecoderProvider;
+import org.apache.pinot.spi.stream.StreamMessageDecoder;
+import org.apache.pinot.spi.stream.StreamMetadataProvider;
+import org.apache.pinot.spi.stream.StreamPartitionMsgOffset;
+import org.apache.pinot.spi.stream.StreamPartitionMsgOffsetFactory;
+import org.apache.pinot.spi.stream.TransientConsumerException;
 import org.apache.pinot.spi.utils.CommonConstants.ConsumerState;
 import org.apache.pinot.spi.utils.CommonConstants.Segment.Realtime.CompletionMode;
 import org.apache.pinot.spi.utils.IngestionConfigUtils;
@@ -61,17 +88,6 @@ import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.annotation.Nullable;
-import java.io.File;
-import java.io.IOException;
-import java.net.URISyntaxException;
-import java.util.*;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 
 
 /**
@@ -420,45 +436,40 @@ public class LLRealtimeSegmentDataManager extends RealtimeSegmentDataManager {
         }
         return true;
     }
-
     private boolean isValid(byte[] data) {
         String topic = _partitionLevelStreamConfig.getTopicName();
         String value = new String(data);
         boolean topicIsExist = false;
-        if (value != null && topic != null) {
+        if (StringUtils.isNotEmpty(value) && StringUtils.isNotEmpty(topic)) {
             Map<String, Object> filterMap = ZkWatcher.getFilter();
-            Iterator<Map.Entry<String, Object>> iterator = filterMap.entrySet().iterator();
 
-            while (iterator.hasNext()) {
-                Map.Entry<String, Object> tmpMap = iterator.next();
+            for (Map.Entry<String, Object> tmpMap : filterMap.entrySet()) {
                 String filterTopic = tmpMap.getKey();
-                if (StringUtils.isNotEmpty(filterTopic)) {
+                if (StringUtils.isNotEmpty(filterTopic) && StringUtils.containsIgnoreCase(topic, filterTopic)) {
+                    topicIsExist = true;
                     Object filterValues = tmpMap.getValue();
                     if (!(filterValues instanceof List)) {
                         return true;
                     } else {
-                        if (filterTopic.equalsIgnoreCase(topic)) {
-                            topicIsExist = true;
-                            if (((List<String>) filterValues).contains(value)) {
+                        for (String str:(List<String>)filterValues) {
+                            if(StringUtils.containsIgnoreCase(value, str)){
                                 return true;
                             }
                         }
                     }
                 }
-                if(topicIsExist){
-                  return false;
+                if (topicIsExist) {
+                    return false;
                 }
             }
         }
-
-
         return false;
     }
+
 
     private void processStreamEvents(MessageBatch messagesAndOffsets, long idlePipeSleepTimeMillis) {
         PinotMeter realtimeRowsConsumedMeter = null;
         PinotMeter realtimeRowsDroppedMeter = null;
-
 
         int indexedMessageCount = 0;
         int streamMessageCount = 0;
@@ -691,7 +702,13 @@ public class LLRealtimeSegmentDataManager extends RealtimeSegmentDataManager {
                         .setValueOfTableGauge(_metricKeyName, ServerGauge.LAST_REALTIME_SEGMENT_COMPLETION_DURATION_SECONDS,
                                 TimeUnit.MILLISECONDS.toSeconds(now() - initialConsumptionEnd));
             }
-            _serverMetrics.setValueOfTableGauge(_metricKeyName, ServerGauge.LLC_PARTITION_CONSUMING, 0);
+            // There is a race condition that the destroy() method can be called which ends up calling stop on the consumer.
+            // The destroy() method does not wait for the thread to terminate (and reasonably so, we dont want to wait forever).
+            // Since the _shouldStop variable is set to true only in stop() method, we know that the metric will be destroyed,
+            // so it is ok not to mark it non-consuming, as the main thread will clean up this metric in destroy() method as the final step.
+            if (!_shouldStop) {
+                _serverMetrics.setValueOfTableGauge(_metricKeyName, ServerGauge.LLC_PARTITION_CONSUMING, 0);
+            }
         }
     }
 
