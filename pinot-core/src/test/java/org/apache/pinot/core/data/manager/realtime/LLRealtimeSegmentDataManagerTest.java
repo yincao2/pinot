@@ -63,8 +63,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -83,7 +82,7 @@ public class LLRealtimeSegmentDataManagerTest {
   private static final String _segmentNameStr = _segmentName.getSegmentName();
   private static final long _startOffsetValue = 19885L;
   private static final LongMsgOffset _startOffset = new LongMsgOffset(_startOffsetValue);
-  private static final String _topicName = "someTopic";
+  private static final String _topicName = "sj1_logstash_telephony_hdfs";
   private static final int maxRowsInSegment = 250000;
   private static final long maxTimeForSegmentCloseMs = 64368000L;
   private final Map<Integer, Semaphore> _partitionGroupIdToSemaphoreMap = new ConcurrentHashMap<>();
@@ -774,6 +773,27 @@ public class LLRealtimeSegmentDataManagerTest {
     tableDataManager.shutDown();
     Assert.assertFalse(SegmentBuildTimeLeaseExtender.isExecutorShutdown());
   }
+
+  @Test
+  public void testIsVaild()  {
+
+    String str = "{\"@timestamp\":\"2021-08-20T06:52:46.218Z\",\"@metadata\":{\"beat\":\"filebeat\",\"type\":\"doc\",\"version\":\"6.7.2\",\"topic\":\"sj1_logstash_telephony_hdfs\"},\"input\":{\"type\":\"log\"},\"component\":\"telephony\",\"host\":\"msj9mcs132.webex.com\",\"message\":{\"featureName\":\"SipAudioRecvInfo\",\"metricName\":\"Quality\",\"serverId\":42402,\"timestamp\":\"2021-08-20T06:52:44Z\",\"trackingId\":\"null\",\"values\":{\"ReceiveJitter\":0,\"ReceiveLostRatio\":0,\"ReceivePackets\":222,\"ReceiveBitRate\":0,\"ReceiveBytes\":22867},\"SessionType\":8,\"cascadeType\":\"CMS\",\"componentType\":\"MCS\",\"componentVer\":\"Atlas, 8.6.1, 07192021 \",\"ssrc\":114390,\"DstIP\":\"10.120.148.167\",\"componentAddress\":\"23.89.54.202\",\"csi\":1678133248,\"locationId\":\"1650001\",\"serverInstanceId\":\"wbxmcs-01\",\"LocalIP\":\"23.89.54.202\",\"__this\":94645264,\"confId\":\"203129249698164004\",\"serverInstance\":\"msj9mcs132.webex.com:wbxmcs-01\"},\"type\":\"mmpmcs\",\"eventtype\":\"metrics\",\"box_status\":\"Pre-prod\",\"beat\":{\"version\":\"6.7.2\",\"name\":\"mmp-msj9mcs132.webex.com\"},\"offset\":43392468,\"prospector\":{\"type\":\"log\"},\"path\":\"/opt/webex/mmp/logs/wbxmcs-01_metrics_08202021_0.26301.log\",\"poolname\":\"msj9\",\"pool_name\":\"msj9\",\"dc_name\":\"SJC02\"}";
+    final byte[] bytes = str.getBytes();
+    try {
+      FakeLLRealtimeSegmentDataManager segmentDataManager = createFakeSegmentManager();
+      Method isValid=LLRealtimeSegmentDataManager.class.getDeclaredMethod("isValid", byte[].class);
+
+
+      isValid.setAccessible(true);
+
+      boolean invoke = (boolean)isValid.invoke(segmentDataManager,bytes);
+      System.out.println(invoke);
+    }catch (Exception e){
+     System.out.println(e.toString());
+   }
+  }
+
+
 
   public static class FakeLLRealtimeSegmentDataManager extends LLRealtimeSegmentDataManager {
 
