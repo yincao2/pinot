@@ -1,6 +1,7 @@
 package org.apache.pinot.common.function;
 
-import org.apache.pinot.common.function.scalar.utils.MapPathUtils;
+
+import org.apache.pinot.common.function.utils.MapPathUtils;
 import org.apache.pinot.spi.annotations.ScalarFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
