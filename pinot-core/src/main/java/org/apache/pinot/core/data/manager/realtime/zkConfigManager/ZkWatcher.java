@@ -1,0 +1,81 @@
+package org.apache.pinot.core.data.manager.realtime.zkConfigManager;
+
+import com.alibaba.fastjson.JSONObject;
+import org.apache.commons.collections.MapUtils;
+import org.apache.pinot.core.data.manager.realtime.zkConfigManager.helper.ConfigureReader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+
+public class ZkWatcher {
+
+    private static Logger logger = LoggerFactory.getLogger(ZkConfigureCenter.class);
+
+    private static ZkWatcher instance = null;
+    private static ConcurrentHashMap<String, Object> filter;
+    private static ConcurrentHashMap<String, Object> defaultFilter;
+
+    public static ConcurrentHashMap<String, Object> getFilter() {
+        if (!MapUtils.isNotEmpty(filter)) {
+            return defaultFilter;
+        }
+        return filter;
+
+    }
+
+    static {
+        String fileName = "filter.json";
+        List<String> defaultWebexAggregated = new ArrayList<>();
+        defaultWebexAggregated.add("SessUserLeave");
+        defaultWebexAggregated.add("Tel_Callout_End");
+        List<String> defaultLogstash = new ArrayList<>();
+        defaultLogstash.add("FailOnJoinSession");
+        defaultLogstash.add("SipAudioRecvInfo");
+        defaultLogstash.add("SipVideoRecvInfo");
+        defaultLogstash.add("ServerQos");
+
+        defaultFilter.put("logstash_telephony", defaultLogstash);
+        defaultFilter.put("logstash_cmse_servicediagnostic", defaultLogstash);
+
+
+        ConfigureReader reader = new ZkConfigureCenter();
+
+        try {
+            reader.watchCnfFile(fileName, new ConfigureReader.ChangeHandler() {
+                @Override
+                public void valueChange(JSONObject jsonObject) {
+                    ZkWatcher.setFilter(jsonObject);
+                }
+            });
+
+
+        } catch (Exception e) {
+            logger.error("listen data change error", e);
+        }
+
+    }
+
+
+    public static void setFilter(Map<String, Object> filter) {
+        ZkWatcher.filter = (ConcurrentHashMap<String, Object>) filter;
+    }
+
+    public static ZkWatcher getInstance() {
+
+        if (instance == null) {
+            synchronized (ZkWatcher.class) {
+                if (instance == null) {
+                    instance = new ZkWatcher();
+                }
+            }
+        }
+        return instance;
+    }
+
+
+}

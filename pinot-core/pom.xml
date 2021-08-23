@@ -57,6 +57,11 @@
   </build>
   <dependencies>
     <dependency>
+      <groupId>com.alibaba</groupId>
+      <artifactId>fastjson</artifactId>
+      <version>1.2.78</version>
+    </dependency>
+    <dependency>
       <groupId>com.uber</groupId>
       <artifactId>h3</artifactId>
     </dependency>

@@ -778,6 +778,9 @@ public class MutableSegmentImpl implements MutableSegment {
         reuse.putDefaultNullValue(column, value);
       } else {
         reuse.putValue(column, value);
+        if (value != null && _nullHandlingEnabled) {
+          reuse.removeNullValueField(column);
+        }
       }
     }
     return reuse;
