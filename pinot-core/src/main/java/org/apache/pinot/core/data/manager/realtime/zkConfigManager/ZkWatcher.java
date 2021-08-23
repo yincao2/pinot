@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -39,7 +40,12 @@ public class ZkWatcher {
             reader.watchCnfFile(fileName, new ConfigureReader.ChangeHandler() {
                 @Override
                 public void valueChange(JSONObject jsonObject) {
-                    ZkWatcher.setFilter(jsonObject);
+                    Map<String, Object> tmpFilter = new ConcurrentHashMap<>(); 
+                    for (Map.Entry<String, Object> entry : jsonObject.entrySet()) {
+                        List<String> stringList= Arrays.asList((entry.getValue()).toString().split(","));
+                        tmpFilter.put(entry.getKey(),stringList);
+                    }
+                    ZkWatcher.setFilter(tmpFilter);
                 }
             });
 
@@ -52,6 +58,7 @@ public class ZkWatcher {
 
 
     public static void setFilter(Map<String, Object> filter) {
+        
         ZkWatcher.filter = (ConcurrentHashMap<String, Object>) filter;
     }
 
