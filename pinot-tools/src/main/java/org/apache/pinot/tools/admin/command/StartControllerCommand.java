@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.pinot.controller.ControllerConf;
+import org.apache.pinot.core.data.manager.realtime.zkConfigManager.helper.ClusterConfig;
 import org.apache.pinot.spi.services.ServiceRole;
 import org.apache.pinot.spi.utils.NetUtils;
 import org.apache.pinot.tools.Command;
@@ -143,6 +144,9 @@ public class StartControllerCommand extends AbstractBaseAdminCommand implements 
     try {
       LOGGER.info("Executing command: " + toString());
       Map<String, Object> controllerConf = getControllerConf();
+      if(ClusterConfig.getZkUrl()==null){
+        ClusterConfig.setZkUrl((String) controllerConf.get("controller.zk.str"));
+      }
       StartServiceManagerCommand startServiceManagerCommand =
           new StartServiceManagerCommand().setZkAddress(_zkAddress).setClusterName(_clusterName).setPort(-1)
               .setBootstrapServices(new String[0]).addBootstrapService(ServiceRole.CONTROLLER, controllerConf);

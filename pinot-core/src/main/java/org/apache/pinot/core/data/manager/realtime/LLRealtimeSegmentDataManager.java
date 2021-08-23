@@ -38,6 +38,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nullable;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pinot.common.Utils;
 import org.apache.pinot.common.metadata.segment.LLCRealtimeSegmentZKMetadata;
 import org.apache.pinot.common.metadata.segment.RealtimeSegmentZKMetadata;
@@ -48,6 +49,7 @@ import org.apache.pinot.common.protocols.SegmentCompletionProtocol;
 import org.apache.pinot.common.restlet.resources.SegmentErrorInfo;
 import org.apache.pinot.common.utils.LLCSegmentName;
 import org.apache.pinot.common.utils.TarGzCompressionUtils;
+import org.apache.pinot.core.data.manager.realtime.zkConfigManager.ZkWatcher;
 import org.apache.pinot.segment.local.indexsegment.mutable.MutableSegmentImpl;
 import org.apache.pinot.segment.local.io.readerwriter.PinotDataBufferMemoryManager;
 import org.apache.pinot.segment.local.realtime.converter.RealtimeSegmentConverter;
@@ -441,6 +443,35 @@ public class LLRealtimeSegmentDataManager extends RealtimeSegmentDataManager {
     }
     return true;
   }
+  private boolean isValid(byte[] data) {
+    String topic = _partitionLevelStreamConfig.getTopicName();
+    String value = new String(data);
+    boolean topicIsExist = false;
+    if (StringUtils.isNotEmpty(value) && StringUtils.isNotEmpty(topic)) {
+      Map<String, Object> filterMap = ZkWatcher.getFilter();
+
+      for (Map.Entry<String, Object> tmpMap : filterMap.entrySet()) {
+        String filterTopic = tmpMap.getKey();
+        if (StringUtils.isNotEmpty(filterTopic) && StringUtils.containsIgnoreCase(topic, filterTopic)) {
+          topicIsExist = true;
+          Object filterValues = tmpMap.getValue();
+          if (!(filterValues instanceof List)) {
+            return true;
+          } else {
+            for (String str:(List<String>)filterValues) {
+              if(StringUtils.containsIgnoreCase(value, str)){
+                return true;
+              }
+            }
+          }
+        }
+        if (topicIsExist) {
+          return false;
+        }
+      }
+    }
+    return false;
+  }
 
   private void processStreamEvents(MessageBatch messagesAndOffsets, long idlePipeSleepTimeMillis) {
     PinotMeter realtimeRowsConsumedMeter = null;
@@ -481,10 +512,13 @@ public class LLRealtimeSegmentDataManager extends RealtimeSegmentDataManager {
       // retrieve metadata from the message batch if available
       // this can be overridden by the decoder if there is a better indicator in the message payload
       RowMetadata msgMetadata = messagesAndOffsets.getMetadataAtIndex(index);
+      GenericRow decodedRow = null;
+      if (isValid((byte[]) messagesAndOffsets.getMessageAtIndex(index))) {
+        decodedRow = _messageDecoder
+                .decode(messagesAndOffsets.getMessageAtIndex(index), messagesAndOffsets.getMessageOffsetAtIndex(index),
+                        messagesAndOffsets.getMessageLengthAtIndex(index), reuse);
+      }
 
-      GenericRow decodedRow = _messageDecoder
-          .decode(messagesAndOffsets.getMessageAtIndex(index), messagesAndOffsets.getMessageOffsetAtIndex(index),
-              messagesAndOffsets.getMessageLengthAtIndex(index), reuse);
       if (decodedRow != null) {
         try {
           if (_complexTypeTransformer != null) {

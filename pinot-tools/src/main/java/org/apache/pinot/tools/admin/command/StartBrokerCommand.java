@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.commons.collections.MapUtils;
 import org.apache.commons.configuration.ConfigurationException;
+import org.apache.pinot.core.data.manager.realtime.zkConfigManager.helper.ClusterConfig;
 import org.apache.pinot.spi.services.ServiceRole;
 import org.apache.pinot.spi.utils.CommonConstants;
 import org.apache.pinot.tools.Command;
@@ -119,6 +120,9 @@ public class StartBrokerCommand extends AbstractBaseAdminCommand implements Comm
     try {
       LOGGER.info("Executing command: " + toString());
       Map<String, Object> brokerConf = getBrokerConf();
+      if(ClusterConfig.getZkUrl()==null){
+        ClusterConfig.setZkUrl((String) brokerConf.get("pinot.zk.server"));
+      }
       StartServiceManagerCommand startServiceManagerCommand =
           new StartServiceManagerCommand().setZkAddress(_zkAddress).setClusterName(_clusterName).setPort(-1)
               .setBootstrapServices(new String[0]).addBootstrapService(ServiceRole.BROKER, brokerConf);
